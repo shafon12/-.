@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ОТК: Отдел Технического Контроля</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card: #151d30;
+      --panel: #1b2640;
+      --border: #2a3b5c;
+      --cyan: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #facc15;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ШАПКА ЗАВОДСКОЙ ЛАБОРАТОРИИ */
+    .top-bar {
+      height: 58px;
+      background: var(--card);
+      border-bottom: 2px solid var(--border);
+      padding: 0 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: #0284c7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .badge-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .badge-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--cyan);
+    }
+
+    .badge-rank {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .stats {
+      text-align: right;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .stats b {
+      color: var(--green);
+      font-size: 14px;
+      display: block;
+    }
+
+    /* ОСНОВНОЙ ЭКРАН */
+    .workspace {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ГОСТ / ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ */
+    .standard-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--yellow);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    }
+
+    .standard-header {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--yellow);
+      display: flex;
+      justify-content: space-between;
+      letter-spacing: 0.5px;
+    }
+
+    .standard-spec {
+      font-size: 12px;
+      color: #cbd5e1;
+      line-height: 1.4;
+    }
+
+    .standard-spec span {
+      color: #fff;
+      font-weight: 700;
+    }
+
+    /* ИНСПЕКЦИОННЫЙ СТОЛ (ДЕЙСТВУЮЩИЙ ОБРАЗЕЦ) */
+    .item-stage {
+      width: 100%;
+      max-width: 440px;
+      background: radial-gradient(circle at center, #1b2844 0%, #0d1527 100%);
+      border: 2px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.7), 0 0 20px rgba(56, 189, 248, 0.15);
+    }
+
+    .stage-label {
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    .batch-id {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-size: 10px;
+      font-family: monospace;
+      color: var(--cyan);
+      background: rgba(56, 189, 248, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .product-visual {
+      width: 190px;
+      height: 190px;
+      margin: 18px 0 10px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .defect-hotspot {
+      position: absolute;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s;
+    }
+
+    .defect-hotspot:active {
+      transform: scale(0.92);
+    }
+
+    .defect-hotspot.found::after {
+      content: '⚠️';
+      position: absolute;
+      font-size: 24px;
+      filter: drop-shadow(0 0 10px var(--red));
+      animation: alertPulse 0.6s infinite alternate;
+    }
+
+    @keyframes alertPulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.25); }
+    }
+
+    /* ПАНЕЛЬ ПРИБОРОВ (МУЛЬТИМЕТР / ШТАНГЕНЦИРКУЛЬ / ВЕСЫ) */
+    .sensors-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .sensor {
+      background: #0b111e;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .sensor-title {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .sensor-val {
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--cyan);
+      margin-top: 2px;
+      font-family: monospace;
+    }
+
+    .sensor-val.defect {
+      color: var(--red);
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0.4; }
+    }
+
+    /* БЛОК ПРИНЯТИЯ РЕШЕНИЙ (ШТАМПЫ ОТК) */
+    .decision-controls {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .stamp-btn {
+      flex: 1;
+      padding: 14px 10px;
+      border: none;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: transform 0.1s, box-shadow 0.2s;
+    }
+
+    .stamp-btn:active {
+      transform: scale(0.95);
+    }
+
+    .stamp-pass {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(22, 163, 74, 0.4);
+    }
+
+    .stamp-reject {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(220, 38, 38, 0.4);
+    }
+
+    .stamp-sub {
+      font-size: 10px;
+      opacity: 0.85;
+      font-weight: 600;
+    }
+
+    /* МОДАЛЬНЫЙ АКТ ПРОВЕРКИ */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .modal-sheet {
+      width: 100%;
+      max-width: 340px;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(0,0,0,0.9);
+    }
+
+    .modal-icon {
+      font-size: 44px;
+      margin-bottom: 8px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+
+    .modal-title.success { color: var(--green); }
+    .modal-title.error { color: var(--red); }
+
+    .modal-text {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 18px;
+      text-align: left;
+      background: #0b111e;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .modal-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--cyan);
+      color: #0b111e;
+      border: none;
+      border-radius: 12px;
+      font-weight: 900;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ШАПКА -->
+  <header class="top-bar">
+    <div class="badge">
+      <div class="badge-icon">🔬</div>
+      <div class="badge-info">
+        <span class="badge-title">ОТК ЛАБОРАТОРИЯ</span>
+        <span class="badge-rank" id="qaRank">Инспектор 1 категории</span>
+      </div>
+    </div>
+    <div class="stats">
+      Премия: <b id="moneyDisplay">1 000 ₽</b>
+      <span id="streakDisplay" style="color:var(--yellow); font-size:10px;">Партия: 1/10</span>
+    </div>
+  </header>
+
+  <!-- РАБОЧАЯ ЗОНА -->
+  <main class="workspace">
+
+    <!-- ГОСТ / ТЕХНИЧЕСКИЕ ТРЕБОВАНИЯ -->
+    <div class="standard-card">
+      <div class="standard-header">
+        <span>📋 ТЕХНИЧЕСКИЙ РЕГЛАМЕНТ / ТУ</span>
+        <span id="productCategory">ПЛАТА СМАРТФОНА</span>
+      </div>
+      <div class="standard-spec" id="standardSpec">
+        Загрузка эталонных параметров...
+      </div>
+    </div>
+
+    <!-- ИСПЫТАТЕЛЬНЫЙ СТОЛ -->
+    <div class="item-stage">
+      <span class="stage-label">🔬 ИНСПЕКЦИОННЫЙ СТОЛ</span>
+      <span class="batch-id" id="batchId">ПАРТИЯ #OTK-4091</span>
+
+      <div class="product-visual" id="productVisual">
+        <!-- SVG генерируется через JS -->
+      </div>
+
+      <!-- ИЗМЕРИТЕЛЬНЫЕ ПРИБОРЫ -->
+      <div class="sensors-grid">
+        <div class="sensor">
+          <div class="sensor-title" id="sensor1Name">Масса</div>
+          <div class="sensor-val" id="sensor1Val">--</div>
+        </div>
+        <div class="sensor">
+          <div class="sensor-title" id="sensor2Name">Сопротивление</div>
+          <div class="sensor-val" id="sensor2Val">--</div>
+        </div>
+        <div class="sensor">
+          <div class="sensor-title" id="sensor3Name">Маркировка</div>
+          <div class="sensor-val" id="sensor3Val">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- РЕШЕНИЕ ОТК -->
+    <div class="decision-controls">
+      <button class="stamp-btn stamp-pass" onclick="decide(true)">
+        <span>✅ ГОДНО К РЕЛИЗУ</span>
+        <span class="stamp-sub">Соответствует ГОСТу</span>
+      </button>
+      <button class="stamp-btn stamp-reject" onclick="decide(false)">
+        <span>❌ В БРАК (ОТКЛОНИТЬ)</span>
+        <span class="stamp-sub">Обнаружен дефект</span>
+      </button>
+    </div>
+
+  </main>
+
+  <!-- АКТ ПРОВЕРКИ (МОДАЛКА) -->
+  <div class="modal" id="reportModal">
+    <div class="modal-sheet">
+      <div class="modal-icon" id="mIcon">📝</div>
+      <div class="modal-title" id="mTitle">АКТ КОНТРОЛЯ</div>
+      <div class="modal-text" id="mText"></div>
+      <button class="modal-btn" onclick="nextBatch()">Следующий образец ➔</button>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    function haptic(type = 'light') {
+      if (tg?.HapticFeedback) {
+        if (type === 'light') tg.HapticFeedback.impactOccurred('light');
+        if (type === 'heavy') tg.HapticFeedback.impactOccurred('heavy');
+        if (type === 'success') tg.HapticFeedback.notificationOccurred('success');
+        if (type === 'error') tg.HapticFeedback.notificationOccurred('error');
+      }
+    }
+
+    // Звуки через Web Audio API
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep(freq, type, time) {
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + time);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start();
+        o.stop(audioCtx.currentTime + time);
+      } catch(e){}
+    }
+
+    let money = 1000;
+    let batchNumber = 1;
+    let currentItem = null;
+
+    // ШАБЛОНЫ ПРОДУКТОВ И ДЕФЕКТОВ ДЛЯ КОНТРОЛЯ КАЧЕСТВА
+    const PRODUCTS = [
+      {
+        category: 'ПЛАТА СМАРТФОНА (ГОСТ 23752)',
+        specText: '• Микросхема CPU ровная, без сколов.<br>• Ток утечки: <b>0.15 - 0.22 А</b>.<br>• Маркировка чипа: строго <b>A17-PRO</b>.<br>• Конденсаторы без нагара.',
+        nominal: { s1: 0.18, s2: 12.0, s3: 'A17-PRO' },
+        sNames: ['Ток утечки', 'Сопротивл.', 'Чип CPU'],
+        sUnits: [' А', ' Ом', ''],
+        type: 'chip',
+        defectsPossible: [
+          { type: 'visual_crack', name: 'Микротрещина текстолита на дорожке питания' },
+          { type: 'visual_burn', name: 'Тепловой прогар на конденсаторе' },
+          { type: 'sensor_over', name: 'Ток утечки 0.48 А (превышение нормы)' },
+          { type: 'sensor_wrong_mark', name: 'Контрафакт: маркировка A16-PRO вместо A17-PRO' }
+        ]
+      },
+      {
+        category: 'АВТОМОБИЛЬНЫЙ ПОРШЕНЬ (ГОСТ 8670)',
+        specText: '• Вес детали: строго <b>420 ± 5 г</b>.<br>• Юбка без царапин и раковин литья.<br>• Паз под стопорное кольцо чистый.<br>• Гравировка сплава: <b>AL-40</b>.',
+        nominal: { s1: 421, s2: 85.0, s3: 'AL-40' },
+        sNames: ['Масса', 'Диаметр', 'Сплав'],
+        sUnits: [' г', ' мм', ''],
+        type: 'piston',
+        defectsPossible: [
+          { type: 'visual_scratch', name: 'Глубокая царапина на зеркале юбки' },
+          { type: 'visual_void', name: 'Раковина литья (пора) в днище поршня' },
+          { type: 'sensor_weight_defect', name: 'Масса 395 г (недовес, брак литья)' },
+          { type: 'sensor_wrong_alloy', name: 'Сплав AL-20 вместо AL-40' }
+        ]
+      },
+      {
+        category: 'ЛИЗЕРНЫЙ СВЕТОДИОД ФАРЫ (ГОСТ Р 41.112)',
+        specText: '• Линза кристально чистая, без пузырей.<br>• Напряжение диода: <b>3.2 - 3.4 V</b>.<br>• Пайка выводов симметричная, без соплей припоя.<br>• Серия: <b>LUX-900</b>.',
+        nominal: { s1: 3.3, s2: 500, s3: 'LUX-900' },
+        sNames: ['Напряжение', 'Яркость', 'Партия'],
+        sUnits: [' V', ' Lm', ''],
+        type: 'led',
+        defectsPossible: [
+          { type: 'visual_bubble', name: 'Воздушный пузырь внутри линзы' },
+          { type: 'visual_solder_bridge', name: 'Замыкание выводов каплей припоя' },
+          { type: 'sensor_led_overvolt', name: 'Напряжение 4.8 V (пробой кристалла)' },
+          { type: 'sensor_wrong_series', name: 'Серия LUX-600 вместо LUX-900' }
+        ]
+      }
+    ];
+
+    function generateBatch() {
+      const template = PRODUCTS[Math.floor(Math.random() * PRODUCTS.length)];
+      const hasDefect = Math.random() < 0.65; // 65% шанс бракованной детали
+
+      let defect = null;
+      if (hasDefect) {
+        defect = template.defectsPossible[Math.floor(Math.random() * template.defectsPossible.length)];
+      }
+
+      // Генерация показателей датчиков
+      let s1 = template.nominal.s1;
+      let s2 = template.nominal.s2;
+      let s3 = template.nominal.s3;
+
+      if (defect && defect.type === 'sensor_over') s1 = 0.48;
+      if (defect && defect.type === 'sensor_wrong_mark') s3 = 'A16-PRO';
+      if (defect && defect.type === 'sensor_weight_defect') s1 = 395;
+      if (defect && defect.type === 'sensor_wrong_alloy') s3 = 'AL-20';
+      if (defect && defect.type === 'sensor_led_overvolt') s1 = 4.8;
+      if (defect && defect.type === 'sensor_wrong_series') s3 = 'LUX-600';
+
+      currentItem = {
+        template,
+        hasDefect,
+        defect,
+        s1, s2, s3
+      };
+
+      // Отрисовка
+      document.getElementById('productCategory').innerText = template.category;
+      document.getElementById('standardSpec').innerHTML = template.specText;
+      document.getElementById('batchId').innerText = `ПАРТИЯ #OTK-${1000 + batchNumber}`;
+
+      document.getElementById('sensor1Name').innerText = template.sNames[0];
+      document.getElementById('sensor1Val').innerText = s1 + template.sUnits[0];
+
+      document.getElementById('sensor2Name').innerText = template.sNames[1];
+      document.getElementById('sensor2Val').innerText = s2 + template.sUnits[1];
+
+      document.getElementById('sensor3Name').innerText = template.sNames[2];
+      document.getElementById('sensor3Val').innerText = s3 + template.sUnits[2];
+
+      renderVisual(template.type, defect);
+    }
+
+    function renderVisual(type, defect) {
+      const stage = document.getElementById('productVisual');
+      stage.innerHTML = '';
+
+      let svgContent = '';
+
+      if (type === 'chip') {
+        svgContent = `
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <!-- Текстолит -->
+            <rect x="20" y="20" width="140" height="140" rx="14" fill="#064e3b" stroke="#10b981" stroke-width="3"/>
+            <!-- Дорожки -->
+            <path d="M30 40 H70 V70" stroke="#34d399" stroke-width="2" fill="none"/>
+            <path d="M150 140 H110 V110" stroke="#34d399" stroke-width="2" fill="none"/>
+            <path d="M150 40 H120 V60" stroke="#34d399" stroke-width="2" fill="none"/>
+            <path d="M30 140 H60 V120" stroke="#34d399" stroke-width="2" fill="none"/>
+            <!-- Центральный процессор -->
+            <rect x="55" y="55" width="70" height="70" rx="6" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+            <text x="90" y="93" fill="#cbd5e1" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">CPU CORE</text>
+            <text x="90" y="107" fill="#facc15" font-size="9" font-family="monospace" text-anchor="middle">${currentItem.s3}</text>
+            <!-- Конденсаторы -->
+            <rect x="35" y="80" width="10" height="20" rx="2" fill="#d97706"/>
+            <rect x="135" y="80" width="10" height="20" rx="2" fill="#d97706"/>
+
+            ${defect && defect.type === 'visual_crack' ? `
+              <!-- Трещина -->
+              <path d="M22 60 L45 75 L38 95 L55 110" stroke="#ef4444" stroke-width="3" fill="none" stroke-linecap="round"/>
+            ` : ''}
+
+            ${defect && defect.type === 'visual_burn' ? `
+              <!-- Прогар конденсатора -->
+              <circle cx="140" cy="90" r="14" fill="rgba(0,0,0,0.85)"/>
+              <path d="M136 82 L144 98 M144 82 L136 98" stroke="#ef4444" stroke-width="2"/>
+            ` : ''}
+          </svg>
+        `;
+      } else if (type === 'piston') {
+        svgContent = `
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <!-- Корпус поршня -->
+            <rect x="40" y="25" width="100" height="130" rx="8" fill="#475569" stroke="#94a3b8" stroke-width="3"/>
+            <!-- Канавки под кольца -->
+            <line x1="38" y1="42" x2="142" y2="42" stroke="#1e293b" stroke-width="4"/>
+            <line x1="38" y1="56" x2="142" y2="56" stroke="#1e293b" stroke-width="4"/>
+            <line x1="38" y1="70" x2="142" y2="70" stroke="#1e293b" stroke-width="4"/>
+            <!-- Отверстие под палец -->
+            <circle cx="90" cy="105" r="22" fill="#1e293b" stroke="#cbd5e1" stroke-width="3"/>
+            <text x="90" y="145" fill="#facc15" font-size="10" font-weight="bold" font-family="monospace" text-anchor="middle">${currentItem.s3}</text>
+
+            ${defect && defect.type === 'visual_scratch' ? `
+              <!-- Царапина -->
+              <path d="M50 85 L70 145" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="2,3"/>
+              <path d="M55 88 L75 148" stroke="#f87171" stroke-width="1.5"/>
+            ` : ''}
+
+            ${defect && defect.type === 'visual_void' ? `
+              <!-- Раковина литья -->
+              <circle cx="90" cy="33" r="6" fill="#0f172a" stroke="#ef4444" stroke-width="2"/>
+              <circle cx="92" cy="34" r="3" fill="#000"/>
+            ` : ''}
+          </svg>
+        `;
+      } else if (type === 'led') {
+        svgContent = `
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <!-- Подложка -->
+            <rect x="40" y="40" width="100" height="100" rx="10" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+            <!-- Линза -->
+            <circle cx="90" cy="90" r="38" fill="radial-gradient(circle, #fef08a 0%, #ca8a04 100%)" stroke="#facc15" stroke-width="3"/>
+            <circle cx="90" cy="90" r="26" fill="#fef9c3" opacity="0.8"/>
+            <!-- Контакты -->
+            <rect x="50" y="140" width="18" height="25" fill="#e2e8f0"/>
+            <rect x="112" y="140" width="18" height="25" fill="#e2e8f0"/>
+            <text x="90" y="55" fill="#94a3b8" font-size="9" font-family="monospace" text-anchor="middle">${currentItem.s3}</text>
+
+            ${defect && defect.type === 'visual_bubble' ? `
+              <!-- Пузырь в линзе -->
+              <circle cx="82" cy="85" r="9" fill="none" stroke="#ef4444" stroke-width="3"/>
+              <circle cx="80" cy="83" r="3" fill="#fff" opacity="0.7"/>
+            ` : ''}
+
+            ${defect && defect.type === 'visual_solder_bridge' ? `
+              <!-- Замыкание припоем -->
+              <path d="M60 148 Q90 140 120 148" stroke="#ef4444" stroke-width="8" stroke-linecap="round" fill="none"/>
+            ` : ''}
+          </svg>
+        `;
+      }
+
+      stage.innerHTML = svgContent;
+    }
+
+    function decide(inspectorApproved) {
+      const isDefective = currentItem.hasDefect;
+      let isSuccess = false;
+      let title = '';
+      let desc = '';
+      let icon = '';
+
+      if (!isDefective && inspectorApproved) {
+        // Деталь была нормальной, инспектор пропустил — ВЕРНО
+        isSuccess = true;
+        icon = '✅';
+        title = 'ПАРТИЯ ПРИНЯТА';
+        desc = `<b>Отличная работа!</b><br>Образец полностью соответствует стандартам ГОСТ. Дефектов не обнаружено. Премия начислена.`;
+        money += 350;
+      } else if (isDefective && !inspectorApproved) {
+        // Был дефект, инспектор забраковал — ВЕРНО
+        isSuccess = true;
+        icon = '🛡️';
+        title = 'БРАК УСПЕШНО ОСТАНОВЛЕН';
+        desc = `<b>Бдительность на высоте!</b><br>Ты вовремя выявил дефект:<br><span style="color:#ef4444; font-weight:bold;">${currentItem.defect.name}</span>.<br>Бракованная партия отправлена на переплавку.`;
+        money += 500;
+      } else if (!isDefective && !inspectorApproved) {
+        // Деталь была целой, но её забраковали — ЛОЖНАЯ ТРЕВОГА
+        isSuccess = false;
+        icon = '⚠️';
+        title = 'ЛОЖНАЯ БРАКОВКА';
+        desc = `<b>Ошибка инспектора!</b><br>Деталь была идеальной и укладывалась во все допуски. Ты необоснованно остановил заводскую линию.<br><span style="color:#facc15;">Штраф за простой: -250 ₽</span>.`;
+        money = Math.max(0, money - 250);
+      } else if (isDefective && inspectorApproved) {
+        // Был дефект, но инспектор пропустил в продажу — ЧП!
+        isSuccess = false;
+        icon = '💥';
+        title = 'СКАСПОРЕННЫЙ РЕЛИЗ: СКАНДАЛ!';
+        desc = `<b>Катастрофический пропуск!</b><br>На склад ушла партия с дефектом:<br><span style="color:#ef4444; font-weight:bold;">${currentItem.defect.name}</span>.<br>Клиенты оформили массовый возврат.<br><span style="color:#ef4444;">Штраф от руководства: -500 ₽</span>.`;
+        money = Math.max(0, money - 500);
+      }
+
+      if (isSuccess) {
+        beep(580, 'sine', 0.15);
+        setTimeout(() => beep(880, 'sine', 0.2), 120);
+        haptic('success');
+      } else {
+        beep(140, 'sawtooth', 0.3);
+        haptic('error');
+      }
+
+      showReport(icon, title, desc, isSuccess);
+      updateHeader();
+    }
+
+    function showReport(icon, title, text, success) {
+      const modal = document.getElementById('reportModal');
+      document.getElementById('mIcon').innerText = icon;
+      const t = document.getElementById('mTitle');
+      t.innerText = title;
+      t.className = `modal-title ${success ? 'success' : 'error'}`;
+      document.getElementById('mText').innerHTML = text;
+      modal.style.display = 'flex';
+    }
+
+    function nextBatch() {
+      document.getElementById('reportModal').style.display = 'none';
+      batchNumber++;
+      document.getElementById('streakDisplay').innerText = `Партия: ${batchNumber}`;
+      generateBatch();
+    }
+
+    function updateHeader() {
+      document.getElementById('moneyDisplay').innerText = money.toLocaleString('ru-RU') + ' ₽';
+      let rank = 'Инспектор 1 категории';
+      if (money >= 2500) rank = 'Ведущий Инженер ОТК';
+      if (money >= 5000) rank = 'Главный Аудитор Качества';
+      if (money >= 10000) rank = 'Директор Департамента Качества';
+      document.getElementById('qaRank').innerText = rank;
+    }
+
+    // Старт игры
+    generateBatch();
+    updateHeader();
+  </script>
+</body>
+</html>
